@@ -2,13 +2,14 @@ package statefun
 
 import (
 	"context"
+	"log"
+	"net/http"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/sjwiesman/statefun-go/pkg/flink/statefun/internal/errors"
 	"github.com/sjwiesman/statefun-go/pkg/flink/statefun/internal/messages"
 	"github.com/valyala/bytebufferpool"
-	"log"
-	"net/http"
 )
 
 // Keeps a mapping from FunctionType to stateful functions
@@ -88,7 +89,7 @@ func (functions *functions) RegisterFunctionPointer(
 	functions.module[funcType] = statefulFunctionPointer(function)
 }
 
-func (functions functions) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (functions *functions) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !validRequest(w, req) {
 		return
 	}
@@ -109,10 +110,13 @@ func (functions functions) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, _ = w.Write(bytes)
+	_, err = w.Write(bytes)
+	if err != nil {
+		http.Error(w, err.Error(), errors.ToCode(err))
+	}
 }
 
-func (functions functions) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
+func (functions *functions) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
 	toFunction := &messages.ToFunction{}
 	if err := proto.Unmarshal(payload, toFunction); err != nil {
 		return nil, errors.BadRequest("failed to unmarshal payload %w", err)
@@ -160,7 +164,7 @@ func fromInternal(address *messages.Address) *Address {
 	}
 }
 
-func executeBatch(functions functions, ctx context.Context, request *messages.ToFunction) (*messages.FromFunction, error) {
+func executeBatch(functions *functions, ctx context.Context, request *messages.ToFunction) (*messages.FromFunction, error) {
 	invocations := request.GetInvocation()
 	if invocations == nil {
 		return nil, errors.BadRequest("missing invocations for batch")

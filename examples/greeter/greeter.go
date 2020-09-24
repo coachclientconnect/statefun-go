@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/protobuf/types/known/anypb"
 	"net/http"
+
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/sjwiesman/statefun-go/pkg/flink/statefun"
 	"github.com/sjwiesman/statefun-go/pkg/flink/statefun/io"
@@ -17,7 +18,7 @@ var egressId = io.EgressIdentifier{
 
 type Greeter struct{}
 
-func (greeter Greeter) Invoke(ctx context.Context, runtime statefun.StatefulFunctionRuntime, _ *anypb.Any) error {
+func (greeter *Greeter) Invoke(ctx context.Context, runtime statefun.StatefulFunctionRuntime, _ *anypb.Any) error {
 	var seen SeenCount
 	if err := runtime.Get("seen_count", &seen); err != nil {
 		return err
@@ -68,7 +69,7 @@ func main() {
 	registry.RegisterFunction(statefun.FunctionType{
 		Namespace: "example",
 		Type:      "greeter",
-	}, Greeter{})
+	}, new(Greeter))
 
 	http.Handle("/statefun", registry)
 	_ = http.ListenAndServe(":8000", nil)
